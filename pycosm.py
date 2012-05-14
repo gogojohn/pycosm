@@ -3,7 +3,7 @@
 """
 pycosm.py
 
-Created by John R. Southern (john.southern@softwerke.ca) on 2012-02-16.
+Created by John R. Southern (https://github.com/gogojohn) on 2012-02-16.
 
 Provide a means to interact with the Cosm (Pachube) API. The API provides a
 RESTful interface which enables the following interactions:
