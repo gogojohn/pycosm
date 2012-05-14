@@ -36,47 +36,50 @@ class CosmDataStream(object):
 	data formats (JSON, XML, CSV) for the response, currently only the default
 	format (JSON) is supported here.
 	"""
-	def __init__(self, datastream_id=None, api_key=None):
+	def __init__(self, feed_id=None, datastream_id=None, api_key=None):
 		
+		self.feed_id = feed_id
 		self.datastream_id = datastream_id
 		self.api_key = api_key
-		
+
 	def get(self):
 		"""
-		Submit a GET request to the API, to get the current state of the stream.
+		Submit a GET request to the API, to get the current state of the
+		stream.
 		"""
-		
+
 		# before attempting to establish a connection to Cosm, make sure
-		# that a stream_id has been specified
-		if self.datastream_id is not None:
-		
+		# that a feed_id has been specified
+		if self.feed_id is not None:
+
 			# attempt to establish a connection to the Cosm API
 			try:
-			
+
 				# submit the HTTP GET request to the API
 				connection = httplib.HTTPSConnection("api.cosm.com", 443)
-				connection.request("GET", "/v2/feeds/%s" %self.datastream_id,
+				connection.request("GET", "/v2/feeds/%s/datastreams/%s"
+				 					%(self.feed_id, self.datastream_id),
 				 					headers = 	{
 											  	"X-ApiKey": self.api_key,
 												"Accept": "application/json"
 												})
-		
+
 				# get the resulting response
 				response = connection.getresponse()
-		
+
 				# close the HTTP connection, now that we're finished with it
 				# connection.close()
-			
+
 			# if, for some reason, we cannot communicate with the API (most
 			# likely because of a network error), then allow the correspoding
 			# exception to be raised
 			except:
 				raise
-		
+
 		# otherwise, raise an exception
 		else:
 			raise StreamIdError(self.datastream_id)
-		
+
 		return response
 
 	def getDict(self):
@@ -84,29 +87,59 @@ class CosmDataStream(object):
 		Submit a GET request, using the get() method, then convert the response
 		into a Python dictionary object.
 		"""
-	
+
 		# submit a GET request to retrieve the current state of the stream
 		response = self.get()
-		
+
 		# convert the response into a dictionary
 		state = eval(response.read())
-		
+
 		return state
-		
-		
-	def put(self):
+
+
+	def put(self, body_content):
 		"""
 		Submit a PUT request to the API, to set the current state of the stream.
 		"""
-		
-		pass
-		
+
+		# before attempting to establish a connection to Cosm, make sure
+		# that a feed_id and stream_id have been specified
+		if self.feed_id is not None and self.datastream_id is not None:
+
+			# attempt to establish a connection to the Cosm API
+			try:
+
+				connection = httplib.HTTPSConnection("api.cosm.com", 443)
+				connection.request("PUT", "/v2/feeds/%s/datastreams/%s"
+				 					%(self.feed_id, self.datastream_id),
+							body_content,
+							headers = 	{
+									  	"X-ApiKey": self.api_key,
+										"Accept": "application/json"
+										}
+							)
+
+				# get the resulting response
+				response = connection.getresponse()
+
+			# if, for some reason, we cannot communicate with the API (most
+			# likely because of a network error), then allow the correspoding
+			# exception to be raised
+			except:
+				raise
+
+		# otherwise, raise an exception
+		else:
+			raise StreamIdError(self.datastream_id)
+
+		return response
+
 
 	def post(self):
 		"""
 		Submit a POST request to the API, to create a new stream.
 		"""
-		
+
 		pass
 		
 		
@@ -114,12 +147,12 @@ class CosmDataStream(object):
 		"""
 		Submit a DELETE request to the API, to delete the current stream.
 		"""
-		
+
 		pass
-		
 
 
-		
+
+
 # Unit tests reside in this section...
 
 class CosmDataStreamTests(unittest.TestCase):
@@ -131,49 +164,50 @@ class CosmDataStreamTests(unittest.TestCase):
 		Instantiate a CosmDataStream object, with a unique stream ID and
 		an API key.
 		"""
-		
-		test_stream_id = "3194"
+
+		test_feed_id = "59484"
+		test_stream_id = "unittest"
 		test_api_key = "zwwPPs2NTKOJps8-UkSGHZdJLR6SAKw0TW1KcXk0QTJyUT0g"
-		
+
 		# establish a connection to the stream
-		connection = CosmDataStream(test_stream_id, test_api_key)
-		
+		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
+
 		# submit a GET request to retrieve the current state of the stream
 		response = connection.get()
 		state = response.read()
-		
+
 		# we should receive a 200 status (200 OK: request processed successfully)
 		self.assertEqual(response.status, 200)
-		
-	
+
+
 	def testAnonymousConnection(self):
 		"""
 		Instantiate a CosmDataStream object, with a unique stream ID but
 		without the required API key.
 		"""
-		
+
 		test_stream_id = "3194"
-		
+
 		# establish a connection to the stream
 		connection = CosmDataStream(test_stream_id)
-		
+
 		# submit a GET request to retrieve the current state of the stream
 		response = connection.get()
 		state = response.read()
-		
+
 		# we should receive a 401 status (401 Not Authorized)
 		self.assertEqual(response.status, 401)
 
-		
+
 	def testEmptyConnection(self):
 		"""
 		Instantiate a CosmStream object, without a unique stream ID and
 		without the required API key.
 		"""
-		
+
 		# establish a connection to the stream
 		connection = CosmDataStream()
-		
+
 		# an exception should be raised by the stream object upon attempting
 		# to call the get() method without a stream_id having been specified
 		self.assertRaises(StreamIdError, connection.get)
@@ -186,28 +220,48 @@ class CosmDataStreamTests(unittest.TestCase):
 		Python dictionary object.
 		"""
 
-		test_stream_id = "3194"
+		test_feed_id = "59484"
+		test_stream_id = "unittest"
 		test_api_key = "zwwPPs2NTKOJps8-UkSGHZdJLR6SAKw0TW1KcXk0QTJyUT0g"
-		
+
 		# establish a connection to the stream
-		connection = CosmDataStream(test_stream_id, test_api_key)
+		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
 		
 		# submit a GET request to retrieve the current state of the stream
 		state = connection.getDict()
-		#print('state: %s' %state)
-		
+		# print('state: %s' %state)
+
 		# the method should return a dictionary object
 		self.assertEqual(type(state), dict)
 		
 		# attempt to access a few of the dictionary keys...
-		
-		# the 'feed' key in the dictionary should be
-		# https://api.cosm.com/v2/feeds/3194.json
-		self.assertEqual(state['feed'], 'https://api.cosm.com/v2/feeds/3194.json')
-		
-		# the 'id' key in the dictionary should be 3194
-		self.assertEqual(state['id'], 3194)
-		
-		
+
+		# the 'id' key in the dictionary should be 'unittest'
+		self.assertEqual(state['id'], 'unittest')
+
+
+	def testPut(self):
+		"""
+		Attempt to set the current state of the stream, using the put() method.
+		"""
+
+		# this key and stream are for unit testing only, feel free to
+		# substitute them with one of your own (but the key must have
+		# read and update permission for the stream)
+		test_feed_id = "59484"
+		test_stream_id = "unittest"
+		test_api_key = "yjMg29wn9GaMPGuDNWUaPaaf_FOSAKx2bk1FVzYwNnZrWT0g"
+
+		# establish a connection to the stream
+		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
+
+		# submit a PUT request to update the current state of the stream
+		state = """{"current_value":"42"}"""
+		response = connection.put(state)
+
+		# we should receive a 200 status (200 OK: request processed successfully)
+		self.assertEqual(response.status, 200)
+
+
 if __name__ == '__main__':
 	unittest.main()
