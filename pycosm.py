@@ -54,10 +54,10 @@ class CosmDataStream(object):
 			try:
 			
 				# submit the HTTP GET request to the API
-				connection = httplib.HTTPConnection("api.cosm.com", 80)
+				connection = httplib.HTTPSConnection("api.cosm.com", 443)
 				connection.request("GET", "/v2/feeds/%s" %self.datastream_id,
 				 					headers = 	{
-											  	"X-PachubeApiKey": self.api_key,
+											  	"X-ApiKey": self.api_key,
 												"Accept": "application/json"
 												})
 		
