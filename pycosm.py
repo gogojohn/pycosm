@@ -18,6 +18,7 @@ Refer to https://cosm.com/docs/ for detailed API documentation.
 """
 
 import httplib
+import json
 import unittest
 
 
@@ -92,8 +93,8 @@ class CosmDataStream(object):
 		response = self.get()
 
 		# convert the response into a dictionary
-		state = eval(response.read())
-
+		state = json.loads(response.read())
+		
 		return state
 
 
@@ -135,12 +136,81 @@ class CosmDataStream(object):
 		return response
 
 
-	def post(self):
+	def post(self, body_content):
 		"""
-		Submit a POST request to the API, to create a new stream.
+		Submit a POST request to the API, to create a new datastream,
+		or datapoint.
 		"""
 
-		pass
+		# before attempting to establish a connection to Cosm, make sure
+		# that a feed_id has been specified
+		if self.feed_id is not None:
+
+			# attempt to establish a connection to the Cosm API
+			try:
+
+				# submit the HTTP POST request to the API
+				connection = httplib.HTTPSConnection("api.cosm.com", 443)
+				connection.request(	"POST",
+				 					"/v2/feeds/%s/datastreams/%s/datapoints"
+				 					%(self.feed_id, self.datastream_id),
+									body_content,
+				 					headers = 	{
+											  	"X-ApiKey": self.api_key,
+												"Accept": "application/json"
+												})
+
+				# get the resulting response
+				response = connection.getresponse()
+
+				# close the HTTP connection, now that we're finished with it
+				# connection.close()
+
+			# if, for some reason, we cannot communicate with the API (most
+			# likely because of a network error), then allow the correspoding
+			# exception to be raised
+			except:
+				raise
+
+		# otherwise, raise an exception
+		else:
+			raise StreamIdError(self.datastream_id)
+
+		return response
+		
+		
+	def postDatapointsDict(self, datapoints):
+		"""
+		Create new datapoints, for this datastream, using the provided
+		dictionary. The key:value pairs in the dictionary must be in the
+		following form:
+		
+			ISO 8601 formatted date-timestamp : value
+			
+		This dictionary is then converted to a JSON string, in the required
+		format, so that the datastream can be updated to include the provided
+		datapoints.
+		"""
+		
+		# create an empty dictionary of datapoints for the JSON string
+		datapointsDict = {"datapoints":[]}
+		
+		# next, iterate through the dictionary keys
+		for key in datapoints.keys():
+		
+			# append each date-timestampt:value pair
+			datapointsDict["datapoints"].append({
+												"at":key,
+												"value":datapoints[key]
+												})
+		
+		# build the JSON formatted body content for the request
+		body_content = json.dumps(datapointsDict)
+		
+		# and, finally, submit the POST request, to update the datastream
+		response = self.post(body_content)
+		
+		return response
 		
 		
 	def delete(self):
@@ -167,7 +237,7 @@ class CosmDataStreamTests(unittest.TestCase):
 
 		test_feed_id = "59484"
 		test_stream_id = "unittest"
-		test_api_key = "zwwPPs2NTKOJps8-UkSGHZdJLR6SAKw0TW1KcXk0QTJyUT0g"
+		test_api_key = "RJcgiqm-gL7t8IVi42G-4kkjhlCSAKxRUHVGdSszWEZPMD0g"
 
 		# establish a connection to the stream
 		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
@@ -222,7 +292,7 @@ class CosmDataStreamTests(unittest.TestCase):
 
 		test_feed_id = "59484"
 		test_stream_id = "unittest"
-		test_api_key = "zwwPPs2NTKOJps8-UkSGHZdJLR6SAKw0TW1KcXk0QTJyUT0g"
+		test_api_key = "RJcgiqm-gL7t8IVi42G-4kkjhlCSAKxRUHVGdSszWEZPMD0g"
 
 		# establish a connection to the stream
 		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
@@ -250,7 +320,7 @@ class CosmDataStreamTests(unittest.TestCase):
 		# read and update permission for the stream)
 		test_feed_id = "59484"
 		test_stream_id = "unittest"
-		test_api_key = "yjMg29wn9GaMPGuDNWUaPaaf_FOSAKx2bk1FVzYwNnZrWT0g"
+		test_api_key = "RJcgiqm-gL7t8IVi42G-4kkjhlCSAKxRUHVGdSszWEZPMD0g"
 
 		# establish a connection to the stream
 		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
@@ -261,6 +331,39 @@ class CosmDataStreamTests(unittest.TestCase):
 
 		# we should receive a 200 status (200 OK: request processed successfully)
 		self.assertEqual(response.status, 200)
+
+
+	def testPostDatapointsDict(self):
+		"""
+		Attempt to create historical datapoints in the stream, using the
+		postDatapointsDict() method.
+		"""
+
+		# this key and stream are for unit testing only, feel free to
+		# substitute them with one of your own (but the key must have
+		# create, read and update permission for the stream)
+		test_feed_id = "59484"
+		test_stream_id = "unittest"
+		test_api_key = "RJcgiqm-gL7t8IVi42G-4kkjhlCSAKxRUHVGdSszWEZPMD0g"
+
+		# establish a connection to the stream
+		connection = CosmDataStream(test_feed_id, test_stream_id, test_api_key)
+	
+		# create a dictionary of datapoints
+		datapoints = 	{
+						"2013-01-14T12:00:00Z":"30",
+						"2013-01-14T12:05:00Z":"35",
+						"2013-01-14T12:10:00Z":"40",
+						"2013-01-14T12:15:00Z":"35",
+						"2013-01-14T12:20:00Z":"30",
+						}
+
+		response = connection.postDatapointsDict(datapoints)
+		
+		# we should receive a 200 status (200 OK: request processed successfully)
+		self.assertEqual(response.status, 200)
+		
+		
 
 
 if __name__ == '__main__':
